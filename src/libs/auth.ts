@@ -7,7 +7,7 @@ declare module "next-auth" {
 		accessToken: string;
 		refreshToken: string;
 		user: {
-			id: string;
+			_id: string;
 			name: string;
 			email: string;
 			role: string;
@@ -17,7 +17,7 @@ declare module "next-auth" {
 	interface User {
 		access_token: string;
 		refresh_token: string;
-		id: string;
+		_id: string;
 		name: string;
 		email: string;
 		role: string;
@@ -71,7 +71,7 @@ export const authOptions: NextAuthOptions = {
 				return {
 					access_token: data.data.accessToken,
 					refresh_token: data.data.refreshToken,
-					id: user._id,
+					_id: user._id,
 					name: user.fullName,
 					email: user.email,
 					role: user.role,
@@ -86,6 +86,7 @@ export const authOptions: NextAuthOptions = {
 				token.accessToken = user.access_token;
 				token.refreshToken = user.refresh_token;
 				token.role = user.role;
+				token.userId = user._id;
 			}
 			return token;
 		},
@@ -94,7 +95,16 @@ export const authOptions: NextAuthOptions = {
 			if (session?.user) {
 				session.accessToken = token.accessToken as string;
 				session.refreshToken = token.refreshToken as string;
-				session.user.role = token.role;
+				session.user.role = token.role as string;
+				session.user._id = token.userId as string;
+
+				// Store session data in localStorage
+				if (typeof window !== "undefined") {
+					localStorage.setItem("accessToken", session.accessToken);
+					localStorage.setItem("refreshToken", session.refreshToken);
+					localStorage.setItem("userRole", session.user.role);
+					localStorage.setItem("userId", session.user._id); // Add user ID to localStorage
+				}
 			}
 			return session;
 		},
@@ -105,21 +115,3 @@ export const getAuthSession = async () => {
 	return getServerSession(authOptions);
 };
 
-// Function to fetch subscription status
-async function fetchSubscriptionStatus(accessToken: string) {
-	const res = await fetch(`${process.env.NEXT_PUBLIC_API_BACKEND}/api/billing_status`, {
-		method: "GET",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Bearer ${accessToken}`, // Use appropriate authorization method
-		},
-	});
-
-	if (!res.ok) {
-		throw new Error("Failed to fetch subscription status");
-	}
-
-	const data = await res.json();
-	console.log("Subscription Status:", data);
-	return data;
-}
